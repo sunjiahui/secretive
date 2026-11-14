@@ -65,6 +65,35 @@ result bundle, and the built app. It does not install or launch the application.
 An unsigned build verifies compilation only. Use your normal development signing
 configuration to run the application and check Keychain and Secure Enclave access.
 
+## Signed local application
+
+Use an **Apple Development** identity listed by `security find-identity -v -p codesigning`:
+
+```sh
+./scripts/build-signed-macos.sh CERTIFICATE_SHA1
+```
+
+The script looks up the selected public certificate by its SHA-1 fingerprint and
+reads its actual Team ID from the subject OU field. It builds a Debug application
+with automatic development signing for that Team and a separate bundle prefix,
+`TEAM_ID.com.example.Secretive`. Xcode must be signed in to an account with access
+to that Team so it can manage provisioning profiles. No private key is exported.
+
+The main app, agent and XPC helpers receive the same Team and bundle prefix.
+XPC connections use the identifiers of the helpers embedded in the running app,
+so changing the bundle prefix does not leave connections pointing at upstream IDs.
+Release signing requirements remain unchanged; this command is for local Debug use.
+
+The script verifies the built app's signature and Team, then prints its path and
+an `open` command. It does not install or launch the app. Keep the same Team and
+bundle identifiers on later builds to retain Keychain access. An existing official
+installation uses a different signing identity and may not expose its keys here.
+
+After launching, enable the agent in the setup flow, create an app-managed key,
+register its public key with your SSH server, and apply **Integrations → SSH** using
+the socket path displayed by this build. Enable the Git exemption or program list
+in **Settings**. A Debug build uses a different socket filename from a Release build.
+
 With an app-managed test key registered on a test server, verify the following:
 
 | Configuration / operation | Expected authentication |
@@ -101,3 +130,8 @@ Mac 上在仓库根目录运行 `./scripts/build-macos.sh`，无需单独下载�
 脚本会检查工具链版本、运行测试并编译应用，日志与构建结果保存在启动时显示的临时目录中。
 实际使用前仍需在签名安装的应用中验证
 Keychain 与 Secure Enclave 行为。保留已有硬件保护密钥及其服务器登记，方便回退。
+
+实际运行时，使用 `security find-identity -v -p codesigning` 列出的 Apple Development
+证书 SHA-1，执行 `./scripts/build-signed-macos.sh 证书SHA1`。脚本从证书 OU 读取真正的
+Team ID，统一主程序和 helper 的签名配置，构建后校验签名并显示打开 App 的命令。
+Xcode 需登录有权使用该 Team 的账户。后续构建保持相同的 Team 与 Bundle ID。

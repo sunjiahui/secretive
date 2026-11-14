@@ -142,6 +142,11 @@ let package = Package(
             name: "XPCWrappers",
             swiftSettings: swiftSettings,
         ),
+        .testTarget(
+            name: "XPCWrappersTests",
+            dependencies: ["XPCWrappers"],
+            swiftSettings: swiftSettings,
+        ),
     ]
 )
 
