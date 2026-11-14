@@ -45,7 +45,8 @@ extension SigningRequestTracer {
             return .init(pid: pid, processName: "Unknown", appName: nil, iconURL: nil, path: "", validSignature: false, parentPID: nil)
         }
         let ppid = unsafe pidAndNameInfo.kp_eproc.e_ppid != 0 ? pidAndNameInfo.kp_eproc.e_ppid : nil
-        var pathBuffer = [UInt8](repeating: 0, count: Int(PROC_PIDPATHINFO_MAXSIZE))
+        // libproc's maximum is 4 * MAXPATHLEN; the compound C macro may not be imported into Swift.
+        var pathBuffer = [UInt8](repeating: 0, count: 4 * Int(MAXPATHLEN))
         let length = unsafe proc_pidpath(pid, &pathBuffer, UInt32(pathBuffer.count))
         let path = length > 0 ? String(decoding: pathBuffer.prefix(while: { $0 != 0 }), as: UTF8.self) : ""
         let procName = URL(fileURLWithPath: path).lastPathComponent

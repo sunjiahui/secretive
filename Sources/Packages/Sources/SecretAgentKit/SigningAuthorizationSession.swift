@@ -82,7 +82,8 @@ private struct ProcessIdentity {
         var info = proc_bsdinfo()
         let size = MemoryLayout<proc_bsdinfo>.size
         guard unsafe proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, Int32(size)) == size else { return nil }
-        var buffer = [UInt8](repeating: 0, count: Int(PROC_PIDPATHINFO_MAXSIZE))
+        // libproc's maximum is 4 * MAXPATHLEN; the compound C macro may not be imported into Swift.
+        var buffer = [UInt8](repeating: 0, count: 4 * Int(MAXPATHLEN))
         let length = unsafe proc_pidpath(pid, &buffer, UInt32(buffer.count))
         guard length > 0, let end = buffer.firstIndex(of: 0),
               let path = String(bytes: buffer[..<end], encoding: .utf8), path.hasPrefix("/") else { return nil }

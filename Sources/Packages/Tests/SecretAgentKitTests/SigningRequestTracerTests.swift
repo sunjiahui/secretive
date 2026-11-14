@@ -3,6 +3,14 @@ import Testing
 @testable import SecretAgentKit
 
 @Suite struct SigningRequestTracerTests {
+    @Test func currentProcessPathCanBeRead() {
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let process = SigningRequestTracer().process(from: pid)
+        #expect(process.pid == pid)
+        #expect(!process.path.isEmpty)
+        #expect(process.path.hasPrefix("/"))
+    }
+
     @Test func failedProcessLookupsAreUntrusted() {
         let tracer = SigningRequestTracer()
         for pid: Int32 in [0, -1, Int32.max] {
