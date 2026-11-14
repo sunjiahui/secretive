@@ -45,7 +45,7 @@ import CryptoKit
     }
 
     private func parse(_ data: Data) throws -> SSHAgent.ProtocolExtension.OpenSSHExtension.SessionBindContext {
-        let request = try SSHAgentInputParser().protocolExtension(from: data)
+        let request = try SSHAgentInputParser.protocolExtension(from: data)
         guard case .openSSH(.sessionBind(let context)) = request else {
             throw ParseFailure()
         }

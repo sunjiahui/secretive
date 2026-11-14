@@ -56,7 +56,7 @@ public struct SSHAgentInputParser: SSHAgentInputParserProtocol {
         case SSHAgent.Request.addSmartcardKeyConstrained.protocolID:
             return .addSmartcardKeyConstrained
         case SSHAgent.Request.protocolExtension(.empty).protocolID:
-            return .protocolExtension(try protocolExtension(from: body))
+            return .protocolExtension(try Self.protocolExtension(from: body))
         default:
             return .unknown(rawRequestInt)
         }
@@ -129,7 +129,8 @@ extension SSHAgentInputParser {
         )
     }
 
-    func protocolExtension(from data: Data) throws(AgentParsingError) -> SSHAgent.ProtocolExtension {
+    // Tests exercise fixture data through this internal entry point without constructing the XPC-only parser.
+    static func protocolExtension(from data: Data) throws(AgentParsingError) -> SSHAgent.ProtocolExtension {
         do {
             let reader = OpenSSHReader(data: data)
             let nameRaw = try reader.readNextChunkAsString()
@@ -247,7 +248,7 @@ extension SSHAgentInputParser {
         }
     }
 
-    private func ecdsaSignature(_ signature: Data, size: Int) throws(OpenSSHReaderError) -> Data {
+    private static func ecdsaSignature(_ signature: Data, size: Int) throws(OpenSSHReaderError) -> Data {
         let reader = OpenSSHReader(data: signature)
         var result = Data()
         for _ in 0..<2 {
