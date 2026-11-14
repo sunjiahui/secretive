@@ -51,14 +51,16 @@ installation to preserve Keychain access.
 ## macOS verification
 
 The current upstream project requires Xcode 27 / Swift 6.4 for its JSON project
-format and internal packages. With that toolchain selected, run:
+format and internal packages. With that toolchain selected, run from the repository root:
 
 ```sh
-xcrun xcodebuild -project Sources/Secretive.xcodeproj -scheme PackageTests test
-swift test --build-system swiftbuild
-xcrun xcodebuild -project Sources/Secretive.xcodeproj -scheme Secretive \
-  -configuration Debug build CODE_SIGNING_ALLOWED=NO
+./scripts/build-macos.sh
 ```
+
+The script checks the selected Xcode and Swift versions, runs the package test plan
+and root package tests, then compiles an unsigned Debug application. It stops on the
+first failure and prints a temporary output directory containing logs, the test
+result bundle, and the built app. It does not install or launch the application.
 
 An unsigned build verifies compilation only. Use your normal development signing
 configuration to run the application and check Keychain and Secure Enclave access.
@@ -95,5 +97,7 @@ Homebrew Git 不会自动命中开关。将 Git 可执行文件直接加入白�
 原生程序若主动代理请求，白名单意味着信任该程序代理的请求。
 移动程序或替换临时签名版本后可能需要重新添加。保存失败会显示错误，规则命中仅授权当前请求。
 
-上面的 macOS 命令用于项目测试与编译；实际使用前仍需在签名安装的应用中验证
+Mac 上在仓库根目录运行 `./scripts/build-macos.sh`，无需单独下载脚本。
+脚本会检查工具链版本、运行测试并编译应用，日志与构建结果保存在启动时显示的临时目录中。
+实际使用前仍需在签名安装的应用中验证
 Keychain 与 Secure Enclave 行为。保留已有硬件保护密钥及其服务器登记，方便回退。
