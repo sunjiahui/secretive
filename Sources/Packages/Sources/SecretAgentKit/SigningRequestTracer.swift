@@ -41,7 +41,7 @@ extension SigningRequestTracer {
     /// - Parameter pid: The process ID to look up.
     /// - Returns: A ``SecretKit.SigningRequestProvenance.Process`` describing the process.
     func process(from pid: Int32) -> SigningRequestProvenance.Process {
-        guard let pidAndNameInfo = self.pidAndNameInfo(from: pid) else {
+        guard let pidAndNameInfo = unsafe self.pidAndNameInfo(from: pid) else {
             return .init(pid: pid, processName: "Unknown", appName: nil, iconURL: nil, path: "", validSignature: false, parentPID: nil)
         }
         let ppid = unsafe pidAndNameInfo.kp_eproc.e_ppid != 0 ? pidAndNameInfo.kp_eproc.e_ppid : nil
