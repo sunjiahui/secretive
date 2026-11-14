@@ -61,12 +61,15 @@ extension SSHAgent.ProtocolExtension.OpenSSHExtension {
         public let sessionID: Data
         public let signature: Data
         public let forwarding: Bool
+        /// Complete wire-format host key; empty for unverified/unsupported bindings.
+        public let hostKeyBlob: Data
 
-        public init(hostKey: Data, sessionID: Data, signature: Data, forwarding: Bool) {
+        public init(hostKey: Data, sessionID: Data, signature: Data, forwarding: Bool, hostKeyBlob: Data = Data()) {
             self.hostKey = hostKey
             self.sessionID = sessionID
             self.signature = signature
             self.forwarding = forwarding
+            self.hostKeyBlob = hostKeyBlob
         }
 
         public static let empty = SessionBindContext(hostKey: Data(), sessionID: Data(), signature: Data(), forwarding: false)

@@ -5,6 +5,7 @@ import SecretKit
 import CertificateKit
 import AppKit
 import SSHProtocolKit
+import SettingsKit
 
 /// The `Agent` is an implementation of an SSH agent. It manages coordination and access between a socket, traces requests, notifies witnesses and passes requests to stores.
 public final class Agent: Sendable {
@@ -17,7 +18,7 @@ public final class Agent: Sendable {
     private let signatureWriter = OpenSSHSignatureWriter()
     private let logger = Logger(subsystem: "com.maxgoedjen.secretive.secretagent", category: "Agent")
 
-    @MainActor private var sessionID: SSHAgent.ProtocolExtension.OpenSSHExtension.SessionBindContext?
+    private let policyProvider: @MainActor @Sendable () throws -> AuthenticationPolicy
 
     /// Initializes an agent with a store list and a witness.
     /// - Parameters:
@@ -27,13 +28,15 @@ public final class Agent: Sendable {
         storeList: SecretStoreList,
         certificateStore: CertificateStore,
         authenticationHandler: AuthenticationHandler,
-        witness: SigningWitness? = nil
+        witness: SigningWitness? = nil,
+        policyProvider: @escaping @MainActor @Sendable () throws -> AuthenticationPolicy = { try SettingsStore().loadAuthenticationPolicy() }
     ) {
         logger.debug("Agent is running")
         self.storeList = storeList
         self.certificateStore = certificateStore
         self.authenticationHandler = authenticationHandler
         self.witness = witness
+        self.policyProvider = policyProvider
     }
     
 }
@@ -43,7 +46,8 @@ extension Agent {
     public func handle(
         request: SSHAgent.Request,
         provenance: SigningRequestProvenance,
-        hosts: [Data: String]?
+        hosts: [Data: String]?,
+        authorizationSession: SigningAuthorizationSession? = nil
     ) async -> Data {
         logger.debug("Agent received request of type \(request.debugDescription)")
         // Depending on the launch context (such as after macOS update), the agent may need to reload secrets before acting
@@ -69,12 +73,6 @@ extension Agent {
                             host: hosts?[payload.hostKey]
                         )
                     )
-                    if let boundSession = await sessionID {
-                        guard payload.hostKey == boundSession.hostKey else {
-                            logger.error("Agent received bind request, but host key does not match signature request host key.")
-                            throw BindingFailure()
-                        }
-                    }
                 case .sshSig(let payload):
                     target = .signature(
                         .init(
@@ -88,22 +86,11 @@ extension Agent {
                 }
                 _ = target
                 response.append(SSHAgent.Response.agentSignResponse.data)
-                response.append(try await sign(data: context.dataToSign.raw, keyBlob: context.keyBlob, provenance: provenance, target: target))
+                response.append(try await sign(data: context.dataToSign.raw, keyBlob: context.keyBlob, provenance: provenance, target: target, authorizationSession: authorizationSession))
                 logger.debug("Agent returned \(SSHAgent.Response.agentSignResponse.debugDescription)")
             case .protocolExtension(.openSSH(.sessionBind(let bind))):
-                // This is disabled until forward enforcement is handled.
-                _ = bind
-                response = try await MainActor.run {
-                    logger.debug("Agent received bind request but not currently supported.")
-                    throw UnhandledRequestError()
-//                    guard sessionID == nil else {
-//                        logger.error("Agent received bind request, but already bound.")
-//                        throw BindingFailure()
-//                    }
-//                    logger.debug("Agent bound")
-//                    sessionID = bind
-//                    return SSHAgent.Response.agentSuccess.data
-                }
+                guard let authorizationSession, await authorizationSession.record(bind) else { throw BindingFailure() }
+                response = SSHAgent.Response.agentSuccess.data
                 logger.debug("Agent returned \(SSHAgent.Response.agentSuccess.debugDescription)")
             case .unknown(let value):
                 logger.error("Agent received unknown request of type \(value).")
@@ -152,7 +139,7 @@ extension Agent {
     ///   - data: The data to sign.
     ///   - provenance: A ``SecretKit.SigningRequestProvenance`` object describing the origin of the request.
     /// - Returns: An OpenSSH formatted Data payload containing the signed data response.
-    func sign(data: Data, keyBlob: Data, provenance: SigningRequestProvenance, target: SigningRequestTarget?) async throws -> Data {
+    func sign(data: Data, keyBlob: Data, provenance: SigningRequestProvenance, target: SigningRequestTarget?, authorizationSession: SigningAuthorizationSession? = nil) async throws -> Data {
         guard let (secret, store) = await secret(matching: keyBlob) else {
             let keyBlobHex = keyBlob.formatted(.hex())
             logger.debug("Agent did not have a key matching \(keyBlobHex)")
@@ -169,10 +156,23 @@ extension Agent {
 
         let request = SignatureRequest(secret: secret, provenance: provenance, target: target)
         let newContext = AuthenticationContext(secret: secret, requests: [request])
-        let context = try await authenticationHandler.authenticatedContext(for: request, context: newContext)
+        let exempt: Bool
+        if secret.authenticationRequirement == .applicationManaged, let authorizationSession {
+            do {
+                let policy = try await policyProvider()
+                exempt = await authorizationSession.isExempt(payload: data, keyBlob: keyBlob, policy: policy)
+            } catch {
+                logger.error("Unable to read authentication exemptions; requiring authentication.")
+                exempt = false
+            }
+        } else {
+            exempt = false
+        }
+        let context = try await authenticationHandler.authenticatedContext(for: request, context: newContext, exempt: exempt)
+        logger.debug("Application-managed authentication exemption: \(exempt)")
         let result = try await store.sign(data: data, with: secret, for: provenance, target: target, context: context?.laContext)
         let signedData = signatureWriter.data(secret: secret, signature: result)
-        try await witness?.witness(accessTo: secret, from: store, by: provenance, target: target, offerPersistence: secret.authenticationRequirement.required)
+        try await witness?.witness(accessTo: secret, from: store, by: provenance, target: target, offerPersistence: secret.authenticationRequirement.required && !exempt)
         logger.debug("Agent signed request")
         return signedData
     }

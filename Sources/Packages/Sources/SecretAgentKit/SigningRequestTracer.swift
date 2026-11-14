@@ -15,8 +15,11 @@ extension SigningRequestTracer {
     func provenance(from fileHandle: FileHandle) -> SigningRequestProvenance {
         let firstInfo = process(from: fileHandle.pidOfConnectedProcess)
         var provenance = SigningRequestProvenance(root: firstInfo)
-        while NSRunningApplication(processIdentifier: provenance.origin.pid) == nil && provenance.origin.parentPID != nil {
-            provenance.chain.append(process(from: provenance.origin.parentPID!))
+        var seen: Set<Int32> = [firstInfo.pid]
+        while provenance.chain.count < 32,
+              NSRunningApplication(processIdentifier: provenance.origin.pid) == nil,
+              let parentPID = provenance.origin.parentPID, parentPID > 0, seen.insert(parentPID).inserted {
+            provenance.chain.append(process(from: parentPID))
         }
         return provenance
     }
@@ -24,32 +27,33 @@ extension SigningRequestTracer {
     /// Generates a `kinfo_proc` representation of the provided process ID.
     /// - Parameter pid: The process ID to look up.
     /// - Returns: a `kinfo_proc` struct describing the process ID.
-    func pidAndNameInfo(from pid: Int32) -> kinfo_proc {
+    func pidAndNameInfo(from pid: Int32) -> kinfo_proc? {
+        guard pid > 0 else { return nil }
+        var info = unsafe kinfo_proc()
         var len = unsafe MemoryLayout<kinfo_proc>.size
-        let infoPointer = UnsafeMutableRawPointer.allocate(byteCount: len, alignment: 1)
         var name: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
-        unsafe sysctl(&name, UInt32(name.count), infoPointer, &len, nil, 0)
-        return unsafe infoPointer.load(as: kinfo_proc.self)
+        guard unsafe sysctl(&name, UInt32(name.count), &info, &len, nil, 0) == 0,
+              len == (unsafe MemoryLayout<kinfo_proc>.size) else { return nil }
+        return unsafe info
     }
 
     /// Generates a ``SecretKit.SigningRequestProvenance.Process`` from a provided process ID.
     /// - Parameter pid: The process ID to look up.
     /// - Returns: A ``SecretKit.SigningRequestProvenance.Process`` describing the process.
     func process(from pid: Int32) -> SigningRequestProvenance.Process {
-        var pidAndNameInfo = unsafe self.pidAndNameInfo(from: pid)
-        let ppid = unsafe pidAndNameInfo.kp_eproc.e_ppid != 0 ? pidAndNameInfo.kp_eproc.e_ppid : nil
-        let procName = unsafe withUnsafeMutablePointer(to: &pidAndNameInfo.kp_proc.p_comm.0) { pointer in
-            unsafe String(cString: pointer)
+        guard let pidAndNameInfo = self.pidAndNameInfo(from: pid) else {
+            return .init(pid: pid, processName: "Unknown", appName: nil, iconURL: nil, path: "", validSignature: false, parentPID: nil)
         }
-
-        let pathPointer = UnsafeMutablePointer<UInt8>.allocate(capacity: Int(MAXPATHLEN))
-        _ = unsafe proc_pidpath(pid, pathPointer, UInt32(MAXPATHLEN))
-
-        let path = unsafe String(cString: pathPointer)
-        var secCode: Unmanaged<SecCode>!
+        let ppid = unsafe pidAndNameInfo.kp_eproc.e_ppid != 0 ? pidAndNameInfo.kp_eproc.e_ppid : nil
+        var pathBuffer = [UInt8](repeating: 0, count: Int(PROC_PIDPATHINFO_MAXSIZE))
+        let length = unsafe proc_pidpath(pid, &pathBuffer, UInt32(pathBuffer.count))
+        let path = length > 0 ? String(decoding: pathBuffer.prefix(while: { $0 != 0 }), as: UTF8.self) : ""
+        let procName = URL(fileURLWithPath: path).lastPathComponent
+        var secCode: SecCode?
         let flags: SecCSFlags = [.considerExpiration, .enforceRevocationChecks]
-        unsafe SecCodeCreateWithPID(pid, SecCSFlags(), &secCode)
-        let valid = unsafe SecCodeCheckValidity(secCode.takeRetainedValue(), flags, nil) == errSecSuccess
+        let attributes = [kSecGuestAttributePid: pid] as CFDictionary
+        let status = unsafe SecCodeCopyGuestWithAttributes(nil, attributes, [], &secCode)
+        let valid = status == errSecSuccess && secCode.map { SecCodeCheckValidity($0, flags, nil) == errSecSuccess } == true
         return SigningRequestProvenance.Process(pid: pid, processName: procName, appName: appName(for: pid), iconURL: iconURL(for: pid), path: path, validSignature: valid, parentPID: ppid)
     }
 
@@ -80,7 +84,3 @@ extension SigningRequestTracer {
     }
 
 }
-
-//// from SecTask.h
-@_silgen_name("SecCodeCreateWithPID")
-@discardableResult func SecCodeCreateWithPID(_: Int32, _: SecCSFlags, _: UnsafeMutablePointer<Unmanaged<SecCode>?>!) -> OSStatus

@@ -1,6 +1,193 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "create_secret_application_managed_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-managed authentication"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "由应用控制验证"
+          }
+        }
+      }
+    },
+    "create_secret_application_managed_description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SecretAgent requests authentication unless a Git or trusted-program exemption applies. The key stays in the Secure Enclave, but hardware does not enforce user presence. Existing keys cannot be converted; register this new public key with your servers."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SecretAgent 默认要求验证，命中 Git 或程序白名单规则时免验证。密钥仍保存在 Secure Enclave 中，但硬件不强制要求用户在场。现有密钥无法转换，请将新公钥登记到服务器。"
+          }
+        }
+      }
+    },
+    "settings_authentication_exemptions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authentication exemptions"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "免验证规则"
+          }
+        }
+      }
+    },
+    "settings_allow_git_reads": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow Git pull and fetch without authentication"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "git pull 和 git fetch 免验证"
+          }
+        }
+      }
+    },
+    "settings_git_reads_description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uses Apple-signed Git and the system SSH client for direct SSH connections. Push and commit signing still require authentication. Ordinary git status does not use SSH."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "适用于 Apple 签名的 Git 和系统 SSH 客户端发起的直接 SSH 连接。push 和提交签名仍需验证。普通 git status 不使用 SSH。"
+          }
+        }
+      }
+    },
+    "settings_application_managed_description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These rules apply only to new keys created with App-managed authentication. Keys with hardware-enforced Touch ID and smart cards keep their existing requirements. Settings are saved immediately."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "规则仅适用于新建时选择“由应用控制验证”的密钥。硬件强制 Touch ID 的密钥和智能卡保留原有验证要求。设置即时保存。"
+          }
+        }
+      }
+    },
+    "settings_trusted_programs": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trusted programs"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "程序白名单"
+          }
+        }
+      }
+    },
+    "settings_trusted_programs_description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected programs and their child processes can use app-managed keys without authentication, including signing. Trusting Terminal or an IDE also trusts commands it runs. SSH forwarding and unverified SSH connections still require authentication. Program paths and code signatures must match; after moving or replacing a program, add it again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选中的程序及其子进程可以免验证使用应用控制密钥，包括数据签名。将终端或 IDE 加入白名单，也会信任其中运行的命令。SSH 转发和无法验证的 SSH 连接仍需验证。程序路径和代码签名必须匹配；移动或替换程序后请重新添加。"
+          }
+        }
+      }
+    },
+    "settings_add_program": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Program…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加程序…"
+          }
+        }
+      }
+    },
+    "settings_remove_program": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除"
+          }
+        }
+      }
+    },
+    "settings_reload": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reload Settings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新加载设置"
+          }
+        }
+      }
+    },
     "" : {
       "localizations" : {
         "af" : {

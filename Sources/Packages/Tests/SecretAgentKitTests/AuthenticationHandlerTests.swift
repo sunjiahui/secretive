@@ -69,6 +69,37 @@ public struct TestSecret: Secret {
 
     let handler = AuthenticationHandler()
 
+    @Test func applicationManagedRequiresAuthenticationByDefault() async throws {
+        let context = TestContext(authenticationRequirement: .applicationManaged, testEvaluationResult: true, approval: .duration(.zero))
+        let request = SignatureRequest(secret: context.secret, provenance: .test, target: nil)
+        _ = try await handler.authenticatedContext(for: request, context: context)
+        #expect(context.evaluationResult == true)
+    }
+
+    @Test func exemptionIsRequestScopedAndDoesNotEvaluateOrEnqueue() async throws {
+        let context = TestContext(authenticationRequirement: .applicationManaged, testEvaluationResult: false, approval: .duration(.zero))
+        let request = SignatureRequest(secret: context.secret, provenance: .test, target: nil)
+        let result = try await handler.authenticatedContext(for: request, context: context, exempt: true)
+        #expect(result == nil)
+        #expect(context.evaluationResult == nil)
+        #expect(handler.batchableRequests.isEmpty)
+        // The same key must authenticate on the next, non-exempt request.
+        await #expect(throws: CancellationError.self) {
+            _ = try await handler.authenticatedContext(for: request, context: context)
+        }
+        #expect(context.evaluationResult == false)
+    }
+
+    @Test(arguments: [AuthenticationRequirement.presenceRequired, .biometryCurrent])
+    func hardwareProtectedKeysCannotReceiveExemptions(_ requirement: AuthenticationRequirement) async throws {
+        let context = TestContext(authenticationRequirement: requirement, testEvaluationResult: false, approval: .duration(.zero))
+        let request = SignatureRequest(secret: context.secret, provenance: .test, target: nil)
+        await #expect(throws: CancellationError.self) {
+            _ = try await handler.authenticatedContext(for: request, context: context, exempt: true)
+        }
+        #expect(context.evaluationResult == false)
+    }
+
     @Test func singleImmediatelyRequests() async throws {
         var calledPresentPending = false
         handler.setPendingRequestHandler {

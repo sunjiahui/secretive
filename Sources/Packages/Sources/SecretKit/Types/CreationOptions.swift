@@ -36,6 +36,9 @@ public enum AuthenticationRequirement: String, Hashable, Sendable, Codable, Iden
     
     /// The user needs to authenticate, using either a biometric option, a connected authorized watch, or password entry..
     case presenceRequired
+
+    /// SecretAgent enforces authentication, with user-configured exemptions. The hardware does not require user presence.
+    case applicationManaged
     
     /// ONLY the current set of biometric data, as matching at time of creation, is accepted.
     /// - Warning: This is a dangerous option prone to data loss. The user should be warned before configuring this key that if they modify their enrolled biometry INCLUDING by simply adding a new entry (ie, adding another fingeprting), the key will no longer be able to be accessed. This cannot be overridden with a password.
@@ -46,7 +49,7 @@ public enum AuthenticationRequirement: String, Hashable, Sendable, Codable, Iden
     
     /// Whether or not the key is known to require authentication.
     public var required: Bool {
-        self == .presenceRequired || self == .biometryCurrent
+        self == .presenceRequired || self == .biometryCurrent || self == .applicationManaged
     }
 
     public var id: AuthenticationRequirement {

@@ -92,7 +92,7 @@ extension SecureEnclave {
         public func create(name: String, attributes: Attributes) async throws -> Secret {
             var accessError: SecurityError?
             let flags: SecAccessControlCreateFlags = switch attributes.authentication {
-            case .notRequired:
+            case .notRequired, .applicationManaged:
                 [.privateKeyUsage]
             case .presenceRequired:
                 [.userPresence, .privateKeyUsage]
