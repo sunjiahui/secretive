@@ -372,6 +372,9 @@
           "product-name": "SecretAgentKit",
           "build-phase": { "build-phase": "frameworks" },
         }, {
+          "product-name": "SettingsKit",
+          "build-phase": { "build-phase": "frameworks" },
+        }, {
           "product-name": "SecretKit",
           "build-phase": { "build-phase": "frameworks" },
         }, {

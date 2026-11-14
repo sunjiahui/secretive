@@ -57,7 +57,7 @@ struct SecretAgent: App {
                                 let hosts = try? await XPCHostsfileReader().read()
                                 for await message in session.messages {
                                     let request = try await inputParser.parse(data: message)
-                                    let agentResponse = await agent.handle(request: request, provenance: session.provenance, hosts: hosts)
+                                    let agentResponse = await agent.handle(request: request, provenance: session.provenance, hosts: hosts, authorizationSession: session.authorizationSession)
                                     try session.write(agentResponse)
                                 }
                             } catch {

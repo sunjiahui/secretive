@@ -16,9 +16,9 @@ struct CreateSecretView<StoreType: SecretStoreModifiable>: View {
 
     private var authenticationOptions: [AuthenticationRequirement] {
         if advanced || authenticationRequirement == .biometryCurrent {
-            [.presenceRequired, .notRequired, .biometryCurrent]
+            [.presenceRequired, .applicationManaged, .notRequired, .biometryCurrent]
         } else {
-            [.presenceRequired, .notRequired]
+            [.presenceRequired, .applicationManaged, .notRequired]
         }
     }
 
@@ -38,6 +38,9 @@ struct CreateSecretView<StoreType: SecretStoreModifiable>: View {
                                     case .presenceRequired:
                                         Image(systemName: "lock")
                                         Text(.createSecretRequireAuthenticationTitle)
+                                    case .applicationManaged:
+                                        Image(systemName: "app.badge.checkmark")
+                                        Text(.createSecretApplicationManagedTitle)
                                     case .biometryCurrent:
                                         Image(systemName: "lock.trianglebadge.exclamationmark.fill")
                                         Text(.createSecretRequireAuthenticationBiometricCurrentTitle)
@@ -54,6 +57,8 @@ struct CreateSecretView<StoreType: SecretStoreModifiable>: View {
                                 Text(.createSecretNotifyDescription)
                             case .presenceRequired:
                                 Text(.createSecretRequireAuthenticationDescription)
+                            case .applicationManaged:
+                                Text(.createSecretApplicationManagedDescription)
                             case .biometryCurrent:
                                 Text(.createSecretRequireAuthenticationBiometricCurrentDescription)
                             case .unknown:

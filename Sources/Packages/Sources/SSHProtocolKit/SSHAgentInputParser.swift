@@ -143,14 +143,26 @@ extension SSHAgentInputParser {
                 switch name {
                 case SSHAgent.ProtocolExtension.OpenSSHExtension.sessionBind(.empty).name:
                     do {
-                        let hostkeyBlob = try reader.readNextChunkAsSubReader()
+                        let completeHostKey = try reader.readNextChunk()
+                        let hostkeyBlob = OpenSSHReader(data: completeHostKey)
                         let hostKeyType = try hostkeyBlob.readNextChunkAsString()
-                        let hostKeyData = try hostkeyBlob.readNextChunk()
+                        let hostKeyData: Data
+                        if hostKeyType.hasPrefix("ecdsa-sha2-") {
+                            let curve = try hostkeyBlob.readNextChunkAsString()
+                            guard hostKeyType == "ecdsa-sha2-" + curve else { throw AgentParsingError.invalidData }
+                            hostKeyData = try hostkeyBlob.readNextChunk()
+                        } else {
+                            hostKeyData = try hostkeyBlob.readNextChunk()
+                        }
                         let sessionID = try reader.readNextChunk()
                         let signatureBlob = try reader.readNextChunkAsSubReader()
-                        _ = try signatureBlob.readNextChunk() // key type again
+                        let signatureType = try signatureBlob.readNextChunkAsString()
+                        guard signatureType == hostKeyType else { throw AgentParsingError.invalidData }
                         let signature = try signatureBlob.readNextChunk()
-                        let forwarding = try reader.readNextByteAsBool()
+                        let forwardingByte = try reader.readNextBytes(as: UInt8.self)
+                        guard forwardingByte <= 1, reader.done, hostkeyBlob.done, signatureBlob.done,
+                              !sessionID.isEmpty else { throw AgentParsingError.invalidData }
+                        let forwarding = forwardingByte == 1
                         switch hostKeyType {
                         case "ssh-ed25519":
                             let hostKey = try CryptoKit.Curve25519.Signing.PublicKey(rawRepresentation: hostKeyData)
@@ -158,13 +170,13 @@ extension SSHAgentInputParser {
                                 throw AgentParsingError.incorrectSignature
                             }
                         case "ecdsa-sha2-nistp256":
-                            let hostKey = try CryptoKit.P256.Signing.PublicKey(rawRepresentation: hostKeyData)
-                            guard hostKey.isValidSignature(try .init(rawRepresentation: signature), for: sessionID) else {
+                            let hostKey = try CryptoKit.P256.Signing.PublicKey(x963Representation: hostKeyData)
+                            guard hostKey.isValidSignature(try .init(rawRepresentation: ecdsaSignature(signature, size: 32)), for: sessionID) else {
                                 throw AgentParsingError.incorrectSignature
                             }
                         case "ecdsa-sha2-nistp384":
-                            let hostKey = try CryptoKit.P384.Signing.PublicKey(rawRepresentation: hostKeyData)
-                            guard hostKey.isValidSignature(try .init(rawRepresentation: signature), for: sessionID) else {
+                            let hostKey = try CryptoKit.P384.Signing.PublicKey(x963Representation: hostKeyData)
+                            guard hostKey.isValidSignature(try .init(rawRepresentation: ecdsaSignature(signature, size: 48)), for: sessionID) else {
                                 throw AgentParsingError.incorrectSignature
                             }
                         case "ssh-mldsa-65":
@@ -194,7 +206,8 @@ extension SSHAgentInputParser {
                             hostKey: hostKeyData,
                             sessionID: sessionID,
                             signature: signature,
-                            forwarding: forwarding
+                            forwarding: forwarding,
+                            hostKeyBlob: completeHostKey
                         )
                         return .openSSH(.sessionBind(context))
                     } catch {
@@ -232,6 +245,21 @@ extension SSHAgentInputParser {
         } catch {
             return nil
         }
+    }
+
+    private func ecdsaSignature(_ signature: Data, size: Int) throws(OpenSSHReaderError) -> Data {
+        let reader = OpenSSHReader(data: signature)
+        var result = Data()
+        for _ in 0..<2 {
+            var integer = try reader.readNextChunk()
+            guard let first = integer.first, first < 0x80 else { throw .incorrectFormat }
+            if first == 0 { integer.removeFirst() }
+            guard !integer.isEmpty, integer.count <= size else { throw .incorrectFormat }
+            result.append(Data(repeating: 0, count: size - integer.count))
+            result.append(integer)
+        }
+        guard reader.done else { throw .incorrectFormat }
+        return result
     }
 
 }

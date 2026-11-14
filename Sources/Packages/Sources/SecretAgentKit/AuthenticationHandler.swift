@@ -112,6 +112,14 @@ public final class AuthenticationContext: AuthenticationContextProtocol {
     }
 
     public func authenticatedContext(for request: SignatureRequest, context: any AuthenticationContextProtocol) async throws -> (any AuthenticationContextProtocol)? {
+        try await authenticatedContext(for: request, context: context, exempt: false)
+    }
+
+    public func authenticatedContext(for request: SignatureRequest, context: any AuthenticationContextProtocol, exempt: Bool) async throws -> (any AuthenticationContextProtocol)? {
+        if exempt && request.secret.authenticationRequirement == .applicationManaged {
+            // This request alone is exempt; do not cache or share its authorization.
+            return nil
+        }
         if request.secret.authenticationRequirement.required {
             // Slow path, will block caller until authenticated (either directly or via a pending requests view).
             return try await waitForAuthentication(for: request, context: context)

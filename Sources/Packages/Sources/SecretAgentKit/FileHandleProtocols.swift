@@ -3,10 +3,11 @@ import Foundation
 extension FileHandle {
 
     public var pidOfConnectedProcess: Int32 {
-        let pidPointer = UnsafeMutableRawPointer.allocate(byteCount: MemoryLayout<Int32>.size, alignment: 1)
+        var pid: Int32 = 0
         var len = socklen_t(MemoryLayout<Int32>.size)
-        unsafe getsockopt(fileDescriptor, SOCK_STREAM, LOCAL_PEERPID, pidPointer, &len)
-        return unsafe pidPointer.load(as: Int32.self)
+        guard unsafe getsockopt(fileDescriptor, SOL_LOCAL, LOCAL_PEERPID, &pid, &len) == 0,
+              len == MemoryLayout<Int32>.size, pid > 0 else { return 0 }
+        return pid
     }
 
 }

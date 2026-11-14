@@ -66,6 +66,8 @@ extension SocketController {
 
         /// The provenance of the process that established the session.
         public let provenance: SigningRequestProvenance
+
+        public let authorizationSession: SigningAuthorizationSession
         
         /// A FileHandle used to communicate with the socket.
         private let fileHandle: FileHandle
@@ -78,8 +80,9 @@ extension SocketController {
         
         /// Initializes a new Session.
         /// - Parameter fileHandle: The FileHandle used to communicate with the socket.
-        init(fileHandle: FileHandle) {
+        @MainActor init(fileHandle: FileHandle) {
             self.fileHandle = fileHandle
+            self.authorizationSession = SigningAuthorizationSession(fileHandle: fileHandle)
             provenance = SigningRequestTracer().provenance(from: fileHandle)
             (messages, messagesContinuation) = AsyncStream.makeStream()
             Task { @MainActor [messagesContinuation, logger] in
