@@ -6,7 +6,8 @@ public struct XPCTypedSession<ResponseType: Codable & Sendable, ErrorType: Error
     private let proxy: _XPCProtocol
 
     public init(serviceName: String, warmup: Bool = false) async throws {
-        let connection = NSXPCConnection(serviceName: serviceName)
+        let identifier = EmbeddedXPCService.identifier(for: serviceName, in: Bundle.main.bundleURL)
+        let connection = NSXPCConnection(serviceName: identifier)
         connection.remoteObjectInterface = NSXPCInterface(with: (any _XPCProtocol).self)
         #if !DEBUG
         connection.setCodeSigningRequirement("anchor apple generic and certificate leaf[subject.OU] = \"Z72PRUAWF6\"")
